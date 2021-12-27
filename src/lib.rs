@@ -1,5 +1,6 @@
 mod game_settings;
 mod tricebot;
+mod utils;
 
 #[cfg(test)]
 mod tests {
