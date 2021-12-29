@@ -49,12 +49,4 @@ impl GameSettings {
 #[cfg(test)]
 mod tests {
     use super::GameSettings;
-
-    #[test]
-    fn check_bool() {
-        let mut settings = GameSettings::new();
-        settings.spectatorsAllowed = true;
-        println!("{}", settings.to_string());
-        panic!();
-    }
 }

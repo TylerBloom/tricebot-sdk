@@ -1,6 +1,7 @@
 use crate::game_settings::GameSettings;
 
 use hyper::{Body, Client, Response, Request};
+use hyper::client::connect::HttpConnector;
 
 pub struct GameMade {
     success: bool,
@@ -37,7 +38,7 @@ impl TriceBot {
         }
     }
 
-    pub async fn req(&self, client: &Client, url_postfix: &str, data: GameSettings, abs: bool) -> Result<Response<Body>, E> {
+    pub async fn req(&self, client: &Client<HttpConnector, Body>, url_postfix: &str, body: String, abs: bool) -> Result<Response<Body>, hyper::Error> {
         let url: String = if abs {
             url_postfix.to_string()
         } else {
@@ -47,7 +48,7 @@ impl TriceBot {
             Request::builder()
                 .method("GET")
                 .uri(url)
-                .body(data.to_string())
+                .body(Body::from(body))
                 .unwrap(),
         ).await
     }
