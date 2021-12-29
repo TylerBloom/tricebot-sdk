@@ -2,6 +2,7 @@ use crate::game_settings::GameSettings;
 
 use hyper::{Body, Client, Response, Request};
 use hyper::client::connect::HttpConnector;
+use hyper_tls::HttpsConnector;
 
 pub struct GameMade {
     success: bool,
@@ -38,11 +39,11 @@ impl TriceBot {
         }
     }
 
-    pub async fn req(&self, client: &Client<HttpConnector, Body>, url_postfix: &str, body: String, abs: bool) -> Result<Response<Body>, hyper::Error> {
+    pub async fn req(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, url_postfix: &str, body: String, abs: bool) -> Result<Response<Body>, hyper::Error> {
         let url: String = if abs {
             url_postfix.to_string()
         } else {
-            format!("{}/{}", self.api_url, url_postfix)
+            format!("https://{}/{}", self.api_url, url_postfix)
         };
         client.request(
             Request::builder()
