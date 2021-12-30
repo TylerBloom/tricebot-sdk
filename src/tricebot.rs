@@ -1,14 +1,15 @@
 use crate::game_settings::GameSettings;
 
-use urlparse::urlparse;
+use urlparse;
 use hyper::{Body, Client, Response, Request};
 use hyper::client::connect::HttpConnector;
 use hyper_tls::HttpsConnector;
 
+#[derive(Debug,Clone)]
 pub struct GameMade {
-    success: bool,
-    game_id: u64,
-    replay_name: String,
+    pub success: bool,
+    pub game_id: u64,
+    pub replay_name: String,
 }
 
 impl GameMade {
@@ -85,11 +86,12 @@ impl TriceBot {
             }
         }
 
-        if let Ok(body) = self.req(client, "api/creategame", body, false).await {
+        if let Ok(response) = self.req(client, "api/creategame", body, false).await {
             let mut game_id: u64 = u64::MAX;
             let mut replay_name: String = String::new();
-            let body_bytes = hyper::body::to_bytes(body.into_body()).await;
+            let body_bytes = hyper::body::to_bytes(response.into_body()).await;
             if let Ok(lines) = std::str::from_utf8(&body_bytes.unwrap()) {
+                println!( "{}", lines );
                 for line in lines.split("\n") {
                     let mut parts = line.splitn(1, "=");
                     let tag = parts.next().unwrap(); // This will always exist
