@@ -30,13 +30,16 @@ impl GameSettings {
             playerDeckVerification: false,
         }
     }
-
     pub fn to_string(&self) -> String {
         let mut digest: String = format!(
-            "gamename={})\n",
+            "gamename={}\n",
             self.gamename.replace("_", "").replace(" ", "")
         );
-        digest += &format!("password={}\n", self.password);
+        if self.password.is_empty() {
+            digest += "password=*\n";
+        } else {
+            digest += &format!("password={}\n", self.password);
+        }
         digest += &format!("playerCount={}\n", self.playerCount);
         digest += &format!(
             "spectatorsAllowed={}\n",

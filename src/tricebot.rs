@@ -85,6 +85,8 @@ impl TriceBot {
                 }
             }
         }
+        
+        println!( "{}\n", body );
 
         if let Ok(response) = self.req(client, "api/creategame", body, false).await {
             let mut game_id: u64 = u64::MAX;
@@ -93,7 +95,7 @@ impl TriceBot {
             if let Ok(lines) = std::str::from_utf8(&body_bytes.unwrap()) {
                 println!( "{}", lines );
                 for line in lines.split("\n") {
-                    let mut parts = line.splitn(1, "=");
+                    let mut parts = line.splitn(2, "=");
                     let tag = parts.next().unwrap(); // This will always exist
                     if let Some(value) = parts.next() {
                         if tag == String::from("gameid") {
