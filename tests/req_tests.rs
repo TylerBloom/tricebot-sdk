@@ -61,5 +61,7 @@ mod tests {
         settings.gamename = "SDK Test".to_string();
         let game_made = trice.create_game( &client, settings, Vec::new(), Vec::new() ).await;
         assert!( game_made.success );
+        let did_end_game = trice.end_game(&client, game_made.game_id).await;
+        assert!( did_end_game );
     }
 }

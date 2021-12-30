@@ -116,6 +116,24 @@ impl TriceBot {
         }
         digest
     }
+    
+    pub async fn end_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, game_id: u64) -> bool {
+        let body = format!( "authtoken={}\ngameid={}", self.auth_token, game_id );
+        if let Ok(response) = self.req(client, "api/endgame", body, false).await {
+            let bytes = hyper::body::to_bytes(response.into_body()).await;
+            match bytes {
+                Ok(val) => {
+                    match std::str::from_utf8(&val) {
+                        Ok(v) => v == "success",
+                        Err(_) => false
+                    }
+                },
+                Err(_) => false
+            }
+        } else {
+            false
+        }
+    }
 }
 /*
 class TriceBot:
