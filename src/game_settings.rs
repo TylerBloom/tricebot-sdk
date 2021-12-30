@@ -1,20 +1,19 @@
-
 use crate::utils::bool_to_string;
 
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug,Clone,Serialize,Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct GameSettings {
-    gamename: String,
-    password: String,
-    playerCount: u8,
-    spectatorsAllowed: bool,
-    spectatorsNeedPassword: bool,
-    spectatorsCanChat: bool,
-    spectatorsCanSeeHands: bool,
-    onlyRegistered: bool,
-    playerDeckVerification: bool,
+    pub gamename: String,
+    pub password: String,
+    pub playerCount: u8,
+    pub spectatorsAllowed: bool,
+    pub spectatorsNeedPassword: bool,
+    pub spectatorsCanChat: bool,
+    pub spectatorsCanSeeHands: bool,
+    pub onlyRegistered: bool,
+    pub playerDeckVerification: bool,
 }
 
 impl GameSettings {
@@ -31,17 +30,35 @@ impl GameSettings {
             playerDeckVerification: false,
         }
     }
-    
+
     pub fn to_string(&self) -> String {
-        let mut digest: String = format!("gamename={})\n", self.gamename);
+        let mut digest: String = format!(
+            "gamename={})\n",
+            self.gamename.replace("_", "").replace(" ", "")
+        );
         digest += &format!("password={}\n", self.password);
         digest += &format!("playerCount={}\n", self.playerCount);
-        digest += &format!("spectatorsAllowed={}\n", bool_to_string(self.spectatorsAllowed));
-        digest += &format!("spectatorsNeedPassword={}\n", bool_to_string(self.spectatorsNeedPassword));
-        digest += &format!("spectatorsCanChat={}\n", bool_to_string(self.spectatorsCanChat));
-        digest += &format!("spectatorsCanSeeHands={}\n", bool_to_string(self.spectatorsCanSeeHands));
+        digest += &format!(
+            "spectatorsAllowed={}\n",
+            bool_to_string(self.spectatorsAllowed)
+        );
+        digest += &format!(
+            "spectatorsNeedPassword={}\n",
+            bool_to_string(self.spectatorsNeedPassword)
+        );
+        digest += &format!(
+            "spectatorsCanChat={}\n",
+            bool_to_string(self.spectatorsCanChat)
+        );
+        digest += &format!(
+            "spectatorsCanSeeHands={}\n",
+            bool_to_string(self.spectatorsCanSeeHands)
+        );
         digest += &format!("onlyRegistered={}\n", bool_to_string(self.onlyRegistered));
-        digest += &format!("playerDeckVerification={}", bool_to_string(self.playerDeckVerification));
+        digest += &format!(
+            "playerDeckVerification={}",
+            bool_to_string(self.playerDeckVerification)
+        );
         digest
     }
 }

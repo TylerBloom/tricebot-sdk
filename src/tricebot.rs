@@ -1,5 +1,6 @@
 use crate::game_settings::GameSettings;
 
+use urlparse::urlparse;
 use hyper::{Body, Client, Response, Request};
 use hyper::client::connect::HttpConnector;
 use hyper_tls::HttpsConnector;
@@ -53,35 +54,69 @@ impl TriceBot {
                 .unwrap(),
         ).await
     }
+    
+    fn download_link(&self, replay_name: &str) -> String {
+        format!("{}/{}", self.extern_url, replay_name)
+    }
+    
+    pub async fn create_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, settings: GameSettings, player_names: Vec<String>, deck_hashes: Vec<Vec<String>>) -> GameMade {
+        let mut digest = GameMade::new( false, u64::MAX, String::new() );
+        if player_names.len() != deck_hashes.len() {
+            return digest
+        }
+
+        let mut body  = format!("authtoken={}\n", self.auth_token);
+        body += &settings.to_string();
+
+        if settings.playerDeckVerification {
+            for (i,name) in player_names.iter().enumerate() {
+                if name.is_empty() {
+                    body += "playerName=*\n";
+                } else {
+                    body += &format!("playerName={}\n", name);
+                    if deck_hashes[i].is_empty() {
+                        body += "deckHash=*\n";
+                    } else {
+                        for hash in deck_hashes[i].iter() {
+                            body += &format!("deckHash={}\n", hash);
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Ok(body) = self.req(client, "api/creategame", body, false).await {
+            let mut game_id: u64 = u64::MAX;
+            let mut replay_name: String = String::new();
+            let body_bytes = hyper::body::to_bytes(body.into_body()).await;
+            if let Ok(lines) = std::str::from_utf8(&body_bytes.unwrap()) {
+                for line in lines.split("\n") {
+                    let mut parts = line.splitn(1, "=");
+                    let tag = parts.next().unwrap(); // This will always exist
+                    if let Some(value) = parts.next() {
+                        if tag == String::from("gameid") {
+                            match value.parse::<u64>() {
+                                Ok(v) => { game_id = v; },
+                                Err(_) => { continue; },
+                            }
+                        } else if tag == String::from("replayName") {
+                            match urlparse::quote(value, b"") {
+                                Ok(v) => { replay_name = v; },
+                                Err(_) => { continue; }
+                            }
+                        }
+                    }
+                }
+            }
+            if game_id != u64::MAX && !replay_name.is_empty() {
+                digest = GameMade::new(true, game_id, replay_name);
+            }
+        }
+        digest
+    }
 }
 /*
 class TriceBot:
-    # verify = false as self signed ssl certificates will cause errors here
-    def req(self, urlpostfix: str, data: str, abs: bool = False) -> str:
-        print(data)
-        url = urlpostfix
-        if not abs:
-            url = f'{self.apiURL}/{url}'
-        resp = requests.get(url, timeout=7.0, data=data,  verify=False).text
-        if not abs:
-            print(resp)
-        return resp
-
-    def reqBin(self, urlpostfix: str, data: str, abs: bool = False) -> str:
-        print(data)
-        url = urlpostfix
-        if not abs:
-            url = f'{self.apiURL}/{url}'
-        resp = requests.get(url, timeout=7.0, data=data,  verify=False).content
-        if not abs:
-            print(resp)
-        return resp
-
-    def checkauthkey(self):
-        return self.req("api/checkauthkey", self.authToken) == "1"
-
-    def getDownloadLink(self, replayName: str) -> str:
-        return f'{self.externURL}/{replayName}'
 
     # Returns the zip file which contains all of the downloaded files
     # Returns none if the zip file would be empty or if there was an IOError
@@ -217,79 +252,4 @@ class TriceBot:
 
         return -2
 
-    def createGame(self, gamename: str, password: str, playercount: int, spectatorsallowed: bool, spectatorsneedpassword: bool, spectatorscanchat: bool, spectatorscanseehands: bool, onlyregistered: bool, playerdeckverification: bool, playernames, deckHashes):
-        if len(playernames) != len(deckHashes):
-            GameMade(False, -1, -1) # They must the same length dummy!
-
-        body  = f'authtoken={self.authToken}\n'
-        body += f'gamename={gamename.replace(" ", "").replace("_", "")}\n'
-        body += f'password={password}\n'
-        body += f'playerCount={playercount}\n'
-        body += f'spectatorsAllowed={int(spectatorsallowed)}\n'
-        body += f'spectatorsNeedPassword={int(spectatorsneedpassword)}\n'
-        body += f'spectatorsCanChat={int(spectatorscanchat)}\n'
-        body += f'spectatorsCanSeeHands={int(spectatorscanseehands)}\n'
-        body += f'onlyRegistered={int(onlyregistered)}\n'
-        body += f'playerDeckVerification={int(playerdeckverification)}\n'
-
-        if playerdeckverification:
-            for i in range(0, len(playernames)):
-                if playernames[i] == "" or playernames[i] == None: # No name
-                    body += f'playerName=*\n'
-                else:
-                    body += f'playerName={playernames[i]}\n'
-                    if len(deckHashes[i]) == 0:
-                        body += f'deckHash=*\n'
-                    else:
-                        for deckHash in deckHashes[i]:
-                            body += f'deckHash={deckHash}\n'
-
-        try:
-            message = self.req("api/creategame", body)
-            print(message)
-        except OSError as exc:
-            #Network issues
-            print("[TRICEBOT ERROR]: Netty error")
-            return GameMade(False, -1, "")
-
-        # Check for server error
-        if (message.lower() == "timeout error") or (message.lower() == "error 404") or (message.lower() == "invalid auth token"):
-            #Server issues
-            print("[TRICEBOT ERROR]: " + message)
-            return GameMade(False, -1, "")
-
-        # Try to parse the message
-        lines = message.split("\n")
-        gameID: int = -1
-        replayName: str = ""
-
-        # Parse line for line
-        for line in lines:
-            parts = line.split("=")
-
-            # Check length
-            if len(parts) >= 2 :
-                tag = parts[0]
-                value = ""
-                for i in range(1, len(parts)):
-                    value += parts[i]
-                    if i != len(parts) - 1:
-                        value += "="
-
-                if tag == "gameid":
-                    # There has to be a better way to do this
-                    try:
-                        gameID = int(value)
-                    except:
-                        # Error checked at end
-                        pass
-                elif tag == "replayName":
-                    replayName = urllib.parse.quote(value)
-                # Ignore other tags
-            # Ignores lines that have no equals in them
-
-        # Check if there was an error
-        success = (gameID != -1) and (replayName != "")
-        print(success)
-        return GameMade(success, gameID, replayName)
     */
