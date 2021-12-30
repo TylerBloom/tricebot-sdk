@@ -17,10 +17,14 @@ pub struct GameSettings {
 }
 
 impl GameSettings {
-    pub fn new() -> Self {
+    pub fn new(game_name: String, password: String) -> Self {
+        if game_name.is_empty() {
+            panic!("Game name is empty.");
+        }
+ 
         GameSettings {
-            gamename: "Game".to_string(),
-            password: "".to_string(),
+            gamename: game_name,
+            password: password,
             playerCount: 2,
             spectatorsAllowed: false,
             spectatorsNeedPassword: false,
