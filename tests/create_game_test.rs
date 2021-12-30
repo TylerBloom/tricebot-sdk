@@ -29,7 +29,7 @@ mod tests {
 
         let https = HttpsConnector::new();
         let client = Client::builder().build::<_, hyper::Body>(https);
-        let mut settings = GameSettings::new();
+        let mut settings = GameSettings::new("Test/Game".to_string(), "password".to_string());
         settings.gamename = "SDK Test".to_string();
         let game_made = trice.create_game( &client, settings, Vec::new(), Vec::new() ).await;
         assert!( game_made.success );
