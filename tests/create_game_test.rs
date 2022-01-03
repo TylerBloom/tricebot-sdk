@@ -1,6 +1,7 @@
 
 #[cfg(test)]
 mod tests {
+
     use tricebot::tricebot::TriceBot;
     use tricebot::game_settings::GameSettings;
 
@@ -10,7 +11,7 @@ mod tests {
     use dotenv;
 
     #[tokio::test]
-    async fn check_game_creation() {
+    pub async fn create_game() {
         dotenv::dotenv().ok();
         let token = match dotenv::var("AUTH_TOKEN") {
             Ok(val) => val,
