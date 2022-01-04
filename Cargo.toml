@@ -6,10 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 hyper = { version = "0.14.16", features = ["client", "http1", "tcp"] }
-urlparse = { version = "0.7.3" }
 hyper-tls = { version = "0.5.0" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0.68" }
+urlparse = { version = "0.7.3" }
+tempfile = { version = "3.2.0" }
 
 [dev-dependencies]
 tokio = { version = "1.15.0", features = ["rt", "macros"] }

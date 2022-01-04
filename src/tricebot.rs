@@ -1,9 +1,12 @@
 use crate::game_settings::GameSettings;
 
 use urlparse;
+use tempfile::tempfile;
 use hyper::{Body, Client, Response, Request};
 use hyper::client::connect::HttpConnector;
 use hyper_tls::HttpsConnector;
+
+use std::collections::HashMap;
 
 #[derive(Debug,Clone)]
 pub struct GameMade {
@@ -41,7 +44,7 @@ impl TriceBot {
         }
     }
 
-    pub async fn req(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, url_postfix: &str, body: String, abs: bool) -> Result<Response<Body>, hyper::Error> {
+    pub async fn req(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, url_postfix: &str, body: &str, abs: bool) -> Result<Response<Body>, hyper::Error> {
         let url: String = if abs {
             url_postfix.to_string()
         } else {
@@ -136,25 +139,30 @@ impl TriceBot {
             false
         }
     }
-}
-/*
-class TriceBot:
-
-    # Returns the zip file which contains all of the downloaded files
-    # Returns none if the zip file would be empty or if there was an IOError
-    def downloadReplays(self, replayURLs, replaysNotFound = []):
-        # Download all the replays
-        replayStrs = []
-        replayNames = []
-
-        # Iterate over each replay url
+    
+    pub async fn downloadReplays(&self, urls: &Vec<String>) -> HashMap<String, tempfile> {
+        let mut digest = HashMap::with_capacity(urls.len());
+        for url in urls {
+            if let Ok(response) = self.req(url.replace(self.extern_url, self.api_url), "", true).await {
+                let mut replay_name: String;
+                match urlparse::unquote(response.split_last("/"), b"") {
+                    Err(_) => { continue; },
+                    Ok(v) => { replay_name = v; }
+                }
+            }
+        }
+        digest
+    }
         for replayURL in replayURLs:
             try:
                 res = self.reqBin(replayURL.replace(self.externURL, self.apiURL), "", abs=True)
                 split = replayURL.split("/")
                 name = urllib.parse.unquote(split[len(split) - 1])
                 try:
-                    if res.decode() == "error 404" or re.match("Not found \[.*\]", res.decode()) or re.match("<!DOCTYPE html>.*", res.decode()) or re.match("<html>.*", res.decode()):
+                    if res.decode() == "error 404" or
+                       re.match("Not found \[.*\]", res.decode()) or 
+                       re.match("<!DOCTYPE html>.*", res.decode()) or 
+                       re.match("<html>.*", res.decode()):
                         # Error file not found
                         replaysNotFound.append(name)
                         #print(res == "error 404")
@@ -191,6 +199,12 @@ class TriceBot:
         except IOError as exc:
             print(exc)
             return None
+}
+/*
+class TriceBot:
+
+    # Returns the zip file which contains all of the downloaded files
+    # Returns none if the zip file would be empty or if there was an IOError
 
     # Returns:
     # 1 if the operation was a success
