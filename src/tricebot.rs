@@ -1,4 +1,5 @@
 use crate::game_settings::GameSettings;
+use crate::utils::response_into_string;
 
 use urlparse;
 use tempfile::tempfile;
@@ -94,8 +95,7 @@ impl TriceBot {
         if let Ok(response) = self.req(client, "api/creategame", body, false).await {
             let mut game_id: u64 = u64::MAX;
             let mut replay_name: String = String::new();
-            let body_bytes = hyper::body::to_bytes(response.into_body()).await;
-            if let Ok(lines) = std::str::from_utf8(&body_bytes.unwrap()) {
+            if let Ok(lines) = response_into_string(response.into_body()).await {
                 println!( "{}", lines );
                 for line in lines.split("\n") {
                     let mut parts = line.splitn(2, "=");
@@ -122,83 +122,34 @@ impl TriceBot {
         digest
     }
     
-    pub async fn end_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, game_id: u64) -> bool {
+    pub async fn end_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, game_id: u64) -> Result<()> {
         let body = format!( "authtoken={}\ngameid={}", self.auth_token, game_id );
-        if let Ok(response) = self.req(client, "api/endgame", body, false).await {
-            let bytes = hyper::body::to_bytes(response.into_body()).await;
-            match bytes {
-                Ok(val) => {
-                    match std::str::from_utf8(&val) {
-                        Ok(v) => v == "success",
-                        Err(_) => false
-                    }
-                },
-                Err(_) => false
-            }
-        } else {
-            false
+        let response = self.req(client, "api/endgame", body, false).await?;
+        match response_into_string(response.into_body()).await {
+            Ok(s) => if s == "success" { Ok(()) } else { Err(()) },
+            Err(e) => Err(e)
         }
     }
     
-    pub async fn downloadReplays(&self, urls: &Vec<String>) -> HashMap<String, tempfile> {
+    pub async fn download_replays(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, urls: &Vec<String>) -> HashMap<String, tempfile> {
         let mut digest = HashMap::with_capacity(urls.len());
         for url in urls {
-            if let Ok(response) = self.req(url.replace(self.extern_url, self.api_url), "", true).await {
-                let mut replay_name: String;
-                match urlparse::unquote(response.split_last("/"), b"") {
-                    Err(_) => { continue; },
-                    Ok(v) => { replay_name = v; }
+            let mut replay_name: String;
+            match urlparse::unquote(url.split("/").next(), b"") {
+                Err(_) => { continue; },
+                Ok(v) => { replay_name = v; }
+            }
+            if let Ok(response) = self.req(client, &url.replace(self.extern_url.clone(), &self.api_url), "", true).await {
+                if let Ok(content) = response_into_string(response.into_body()).await {
+                    if !was_bad_request(content) && let Ok(f) = tempfile() {
+                        f.write(content);
+                        digest.append(replay_name, f);
+                    }
                 }
             }
         }
         digest
     }
-        for replayURL in replayURLs:
-            try:
-                res = self.reqBin(replayURL.replace(self.externURL, self.apiURL), "", abs=True)
-                split = replayURL.split("/")
-                name = urllib.parse.unquote(split[len(split) - 1])
-                try:
-                    if res.decode() == "error 404" or
-                       re.match("Not found \[.*\]", res.decode()) or 
-                       re.match("<!DOCTYPE html>.*", res.decode()) or 
-                       re.match("<html>.*", res.decode()):
-                        # Error file not found
-                        replaysNotFound.append(name)
-                        #print(res == "error 404")
-                        #print(re.match("Not found \[.*\]", res))
-                        #print(re.match("<!DOCTYPE html>.*", res))
-                    else:
-                        # Create a temp file and write the data
-                        replayStrs.append(res)
-                        replayNames.append(name)
-                except UnicodeDecodeError as e:
-                    print(e) # This means we got binary :)
-                    # Create a temp file and write the data
-                    replayStrs.append(res)
-                    replayNames.append(name)
-            except OSError as exc:
-                # Network issues
-                print("[TRICEBOT ERROR]: Netty error")
-                replaysNotFound.append(replayURL)
-
-        # Create zip file then close the temp files
-        try:
-            if (len(replayStrs) == 0):
-                return None
-            tmpFile = tempfile.TemporaryFile(mode="wb+", suffix="tricebot.py", prefix="replaydownloads.zip")
-            #tmpFile = open("I hate python.zip", "wb+")
-            zipf = zipfile.ZipFile(tmpFile, "w", zipfile.ZIP_DEFLATED)
-            for i in range(0, len(replayStrs)):
-                replayStr = replayStrs[i]
-                name = replayNames[i]
-                zipf.writestr(name, replayStr, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
-            zipf.close()
-            tmpFile.seek(0)
-            return tmpFile
-        except IOError as exc:
-            print(exc)
-            return None
 }
 /*
 class TriceBot:

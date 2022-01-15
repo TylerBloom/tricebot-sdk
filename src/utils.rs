@@ -1,5 +1,6 @@
 
 use tempfile::tempfile;
+use hyper::body;
 
 
 pub fn bool_to_string(b: bool) -> String {
@@ -7,6 +8,17 @@ pub fn bool_to_string(b: bool) -> String {
         true => "1".to_string(),
         false => "0".to_string()
     }
+}
+
+pub async fn response_into_string( res: body::Body ) -> Result<String,E> {
+    let bytes = body::to_bytes(res.into_body()).await?;
+    std::str::from_utf8(&bytes)
+}
+
+// Checks for various signs of a body request in the string represtation of a body, i.e. `404
+// Error`, `DOCTYPE`, etc.
+pub fn was_bad_request(body: &str) -> bool {
+    todo!()
 }
 
 // The download files method of tricebot will return the temp files.
