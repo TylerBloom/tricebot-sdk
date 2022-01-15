@@ -1,9 +1,11 @@
 [package]
 name = "tricebot"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
+license = "GPL-3.0"
+rust-version = "1.58.0"
+authors = [ "Tyler Bloom" ]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 hyper = { version = "0.14.16", features = ["client", "http1", "tcp"] }
 hyper-tls = { version = "0.5.0" }
