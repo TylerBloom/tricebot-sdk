@@ -55,7 +55,7 @@ impl TriceBot {
             Request::builder()
                 .method("GET")
                 .uri(url)
-                .body(Body::from(body))
+                .body(Body::from(body.to_string()))
                 .unwrap(),
         ).await
     }
@@ -92,7 +92,7 @@ impl TriceBot {
         
         println!( "{}\n", body );
 
-        if let Ok(response) = self.req(client, "api/creategame", body, false).await {
+        if let Ok(response) = self.req(client, "api/creategame", &body, false).await {
             let mut game_id: u64 = u64::MAX;
             let mut replay_name: String = String::new();
             if let Ok(lines) = response_into_string(response.into_body()).await {
@@ -122,9 +122,9 @@ impl TriceBot {
         digest
     }
     
-    pub async fn end_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, game_id: u64) -> Result<()> {
-        let body = format!( "authtoken={}\ngameid={}", self.auth_token, game_id );
-        let response = self.req(client, "api/endgame", body, false).await?;
+    pub async fn end_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, game_id: u64) -> Result<(),()> {
+        let body = format!("authtoken={self.auth_token}\ngameid={game_id}");
+        let response = self.req(client, "api/endgame", &body, false).await?;
         match response_into_string(response.into_body()).await {
             Ok(s) => if s == "success" { Ok(()) } else { Err(()) },
             Err(e) => Err(e)

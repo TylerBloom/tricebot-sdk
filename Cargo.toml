@@ -3,10 +3,10 @@ name = "tricebot"
 version = "0.0.0"
 edition = "2021"
 license = "GPL-3.0"
-rust-version = "1.58.0"
-authors = [ "Tyler Bloom" ]
+authors = ["TylerBloom <tylerbloom2222@gmail.com>"]
 
 [dependencies]
+serde = { version = "1.0", features = ["derive"] }
 hyper = { version = "0.14.16", features = ["client", "http1", "tcp"] }
 hyper-tls = { version = "0.5.0" }
 urlparse = { version = "0.7.3" }

@@ -1,10 +1,10 @@
-use crate::utils::bool_to_string;
 use crate::trice_error::TriceError;
+use crate::utils::bool_to_string;
 
-use serde::{Deserialize, Serialize};
+//use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
+#[derive(Debug, Clone)]
 pub struct GameSettings {
     pub gamename: String,
     pub password: String,
@@ -24,8 +24,7 @@ impl GameSettings {
         } else if password.is_empty() {
             Err(TriceError::new(String::from("Password is empty.")))
         } else {
-            Ok(
-            GameSettings {
+            Ok(GameSettings {
                 gamename: game_name,
                 password,
                 playerCount: 2,
@@ -33,10 +32,9 @@ impl GameSettings {
                 spectatorsNeedPassword: false,
                 spectatorsCanChat: false,
                 spectatorsCanSeeHands: false,
-                 onlyRegistered: false,
+                onlyRegistered: false,
                 playerDeckVerification: false,
-            }
-            )
+            })
         }
     }
     pub fn to_string(&self) -> String {
