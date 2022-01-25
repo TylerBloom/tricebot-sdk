@@ -28,7 +28,7 @@ mod tests {
 
         let https = HttpsConnector::new();
         let client = Client::builder().build::<_, hyper::Body>(https);
-        match trice.req(&client, "api/checkauthkey", token, false).await {
+        match trice.req(&client, "api/checkauthkey", &token, false).await {
             Err(_) => panic!("Got an error back"),
             Ok(r) => {
                 assert_eq!(
