@@ -7,6 +7,7 @@ use hyper::{Body, Client, Response, Request};
 use hyper::client::connect::HttpConnector;
 use hyper_tls::HttpsConnector;
 
+use std::error::Error;
 use std::collections::HashMap;
 
 #[derive(Debug,Clone)]
@@ -53,17 +54,17 @@ impl TriceBot {
         };
         client.request(
             Request::builder()
-                .method("GET")
-                .uri(url)
-                .body(Body::from(body.to_string()))
-                .unwrap(),
+            .method("GET")
+            .uri(url)
+            .body(Body::from(body.to_string()))
+            .unwrap(),
         ).await
     }
-    
+
     fn download_link(&self, replay_name: &str) -> String {
         format!("{}/{}", self.extern_url, replay_name)
     }
-    
+
     pub async fn create_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, settings: GameSettings, player_names: Vec<String>, deck_hashes: Vec<Vec<String>>) -> GameMade {
         let mut digest = GameMade::new( false, u64::MAX, String::new() );
         if player_names.len() != deck_hashes.len() {
@@ -89,13 +90,13 @@ impl TriceBot {
                 }
             }
         }
-        
+
         println!( "{}\n", body );
 
         if let Ok(response) = self.req(client, "api/creategame", &body, false).await {
             let mut game_id: u64 = u64::MAX;
             let mut replay_name: String = String::new();
-            if let Ok(lines) = response_into_string(response.into_body()).await {
+            if let Ok(lines) = response_into_string(response).await {
                 println!( "{}", lines );
                 for line in lines.split("\n") {
                     let mut parts = line.splitn(2, "=");
@@ -121,16 +122,16 @@ impl TriceBot {
         }
         digest
     }
-    
-    pub async fn end_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, game_id: u64) -> Result<(),()> {
-        let body = format!("authtoken={self.auth_token}\ngameid={game_id}");
+
+    pub async fn end_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, game_id: u64) -> Result<(),Box<dyn Error>> {
+        let body = format!("authtoken={}\ngameid={game_id}",self.auth_token);
         let response = self.req(client, "api/endgame", &body, false).await?;
-        match response_into_string(response.into_body()).await {
-            Ok(s) => if s == "success" { Ok(()) } else { Err(()) },
+        match response_into_string(response).await {
+            Ok(s) => if s == "success" { Ok(()) } else { Err() },
             Err(e) => Err(e)
         }
     }
-    
+
     pub async fn download_replays(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, urls: &Vec<String>) -> HashMap<String, tempfile> {
         let mut digest = HashMap::with_capacity(urls.len());
         for url in urls {
@@ -152,91 +153,91 @@ impl TriceBot {
     }
 }
 /*
-class TriceBot:
+   class TriceBot:
 
-    # Returns the zip file which contains all of the downloaded files
-    # Returns none if the zip file would be empty or if there was an IOError
+   # Returns the zip file which contains all of the downloaded files
+   # Returns none if the zip file would be empty or if there was an IOError
 
-    # Returns:
-    # 1 if the operation was a success
-    # 2 if the slot was occupied (warns the admin that a player may need to be kicked)
+   # Returns:
+   # 1 if the operation was a success
+   # 2 if the slot was occupied (warns the admin that a player may need to be kicked)
 
-    # 0 if a network error occurred
-    # -1 if the game was not found
-    # -2 if the player slot was not found
-    def changePlayerInfo(self, gameID: int, oldPlayerName: str, newPlayerName: str):
-        body  = f'authtoken={self.authToken}\n'
-        body += f'oldplayername={oldPlayerName}\n'
-        body += f'newplayername={newPlayerName}\n'
-        body += f'gameid={gameID}'
+   # 0 if a network error occurred
+   # -1 if the game was not found
+   # -2 if the player slot was not found
+   def changePlayerInfo(self, gameID: int, oldPlayerName: str, newPlayerName: str):
+   body  = f'authtoken={self.authToken}\n'
+   body += f'oldplayername={oldPlayerName}\n'
+   body += f'newplayername={newPlayerName}\n'
+   body += f'gameid={gameID}'
 
-        res = ""
-        try:
-            res = self.req("api/updateplayerinfo", body)
-        except OSError as exc:
-            #Network issues
-            print("[TRICEBOT ERROR]: Netty error")
-            res = "network error"
+   res = ""
+   try:
+   res = self.req("api/updateplayerinfo", body)
+   except OSError as exc:
+   #Network issues
+   print("[TRICEBOT ERROR]: Netty error")
+   res = "network error"
 
-        if res == "success":
-            return 1
-        elif res == "success but occupied":
-            return 2
-        elif res == "error game not found":
-            return -1
-        elif res == "error player not found":
-            return -2
-        else:
-            return 0
+   if res == "success":
+   return 1
+   elif res == "success but occupied":
+   return 2
+   elif res == "error game not found":
+   return -1
+   elif res == "error player not found":
+   return -2
+   else:
+   return 0
 
-    # 1 if success
-    # 0 auth token is bad, error 404 or network issue
-    # -1 game not found
-    def disablePlayerDeckVerificatoin(self, gameID: str) -> int:
-        body  = f'authtoken={self.authToken}\n'
-        body += f'gameid={gameID}'
+   # 1 if success
+   # 0 auth token is bad, error 404 or network issue
+   # -1 game not found
+   def disablePlayerDeckVerificatoin(self, gameID: str) -> int:
+   body  = f'authtoken={self.authToken}\n'
+   body += f'gameid={gameID}'
 
-        res = ""
-        try:
-            res = self.req("api/disableplayerdeckverification", body)
-        except OSError as exc:
-            #Network issues
-            print("[TRICEBOT ERROR]: Netty error")
-            res = "network error"
-            return 0
+   res = ""
+   try:
+   res = self.req("api/disableplayerdeckverification", body)
+   except OSError as exc:
+   #Network issues
+   print("[TRICEBOT ERROR]: Netty error")
+   res = "network error"
+   return 0
 
-        if res == "success":
-            return 1
-        elif res == "error 404" or "invalid auth token":
-            return 0
-        elif res == "game not found":
-            return -1
-        return 0
+   if res == "success":
+   return 1
+   elif res == "error 404" or "invalid auth token":
+   return 0
+   elif res == "game not found":
+   return -1
+   return 0
 
-    #  1 if success
-    #  0 auth token is bad or error404 or network issue
-    # -1 if player not found
-    # -2 if an unknown error occurred
-    def kickPlayer(self, gameID: int, name: str) -> int:
-        body  = f'authtoken={self.authToken}\n'
-        body += f'gameid={gameID}\n'
-        body += f'target={name}'
+   #  1 if success
+   #  0 auth token is bad or error404 or network issue
+   # -1 if player not found
+   # -2 if an unknown error occurred
+   def kickPlayer(self, gameID: int, name: str) -> int:
+   body  = f'authtoken={self.authToken}\n'
+   body += f'gameid={gameID}\n'
+   body += f'target={name}'
 
-        try:
-            message = self.req("api/kickplayer", body)
-        except OSError as exc:
-            # Network issues
-            print("[TRICEBOT ERROR]: Netty error")
-            return 0
+try:
+message = self.req("api/kickplayer", body)
+except OSError as exc:
+# Network issues
+print("[TRICEBOT ERROR]: Netty error")
+return 0
 
-        # Check for server error
-        if (message == "timeout error" or message == "error 404" or message == "invalid auth token"):
-            return 0
-        if (message == "success"):
-            return 1
-        elif (message == "error not found"):
-            return -1
+# Check for server error
+if (message == "timeout error" or message == "error 404" or message == "invalid auth token"):
+return 0
+if (message == "success"):
+return 1
+elif (message == "error not found"):
+return -1
 
-        return -2
+return -2
 
-    */
+*/

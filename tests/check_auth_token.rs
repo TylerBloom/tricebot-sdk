@@ -6,9 +6,9 @@ mod tests {
 
     use hyper_tls::HttpsConnector;
     use hyper::Client;
-    use tokio;
     use dotenv;
 
+    use tokio;
     #[tokio::test]
     async fn check_auth_token() {
         dotenv::dotenv().ok();

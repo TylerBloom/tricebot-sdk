@@ -1,7 +1,8 @@
 use hyper::{body, Response};
-use tempfile::tempfile;
 
 use std::error::Error;
+use std::collections::HashMap;
+use std::fs::File;
 
 pub fn bool_to_string(b: bool) -> String {
     match b {
@@ -12,7 +13,8 @@ pub fn bool_to_string(b: bool) -> String {
 
 pub async fn response_into_string(res: Response<body::Body>) -> Result<String, Box<dyn Error>> {
     let bytes = body::to_bytes(res.into_body()).await?;
-    std::str::from_utf8(&bytes).or_else(|s| s.to_string())
+    let s = std::str::from_utf8(&bytes)?;
+    Ok(s.to_string())
 }
 
 // Checks for various signs of a body request in the string represtation of a body, i.e. `404
@@ -23,7 +25,7 @@ pub fn was_bad_request(body: &str) -> bool {
 
 // The download files method of tricebot will return the temp files.
 // This function will zip them up and will eventually return a zipped file.
-pub fn zip_tempfiles(files: &HashMap<String, tempfile>) -> () {
+pub fn zip_tempfiles(files: &HashMap<String, std::fs::File>) -> () {
     todo!()
 }
 /* Python source:
