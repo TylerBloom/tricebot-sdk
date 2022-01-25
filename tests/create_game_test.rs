@@ -1,14 +1,13 @@
-
 #[cfg(test)]
 mod tests {
 
-    use tricebot::tricebot::TriceBot;
     use tricebot::game_settings::GameSettings;
+    use tricebot::tricebot::TriceBot;
 
-    use hyper_tls::HttpsConnector;
-    use hyper::Client;
-    use tokio;
     use dotenv;
+    use hyper::Client;
+    use hyper_tls::HttpsConnector;
+    use tokio;
 
     #[tokio::test]
     pub async fn create_game() {
@@ -32,9 +31,11 @@ mod tests {
         let client = Client::builder().build::<_, hyper::Body>(https);
         let mut settings = GameSettings::new("Test/Game".to_string(), "password".to_string());
         settings.gamename = "SDK Test".to_string();
-        let game_made = trice.create_game( &client, settings, Vec::new(), Vec::new() ).await;
-        assert!( game_made.success );
+        let game_made = trice
+            .create_game(&client, settings, Vec::new(), Vec::new())
+            .await;
+        assert!(game_made.success);
         let did_end_game = trice.end_game(&client, game_made.game_id).await;
-        assert!( did_end_game );
+        assert!(did_end_game);
     }
 }

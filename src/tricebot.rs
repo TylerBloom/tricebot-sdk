@@ -1,16 +1,19 @@
 use crate::game_settings::GameSettings;
-use crate::utils::response_into_string;
+use crate::trice_error::TriceError;
+use crate::utils;
 
-use urlparse;
-use tempfile::tempfile;
-use hyper::{Body, Client, Response, Request};
 use hyper::client::connect::HttpConnector;
+use hyper::{Body, Client, Request, Response};
 use hyper_tls::HttpsConnector;
+use tempfile::tempfile;
+use urlparse;
 
-use std::error::Error;
 use std::collections::HashMap;
+use std::error::Error;
+use std::fs::File;
+use std::io::prelude::*;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct GameMade {
     pub success: bool,
     pub game_id: u64,
@@ -46,36 +49,50 @@ impl TriceBot {
         }
     }
 
-    pub async fn req(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, url_postfix: &str, body: &str, abs: bool) -> Result<Response<Body>, hyper::Error> {
+    pub async fn req(
+        &self,
+        client: &Client<HttpsConnector<HttpConnector>, Body>,
+        url_postfix: &str,
+        body: &str,
+        abs: bool,
+    ) -> Result<Response<Body>, hyper::Error> {
         let url: String = if abs {
             url_postfix.to_string()
         } else {
             format!("https://{}/{}", self.api_url, url_postfix)
         };
-        client.request(
-            Request::builder()
-            .method("GET")
-            .uri(url)
-            .body(Body::from(body.to_string()))
-            .unwrap(),
-        ).await
+        client
+            .request(
+                Request::builder()
+                    .method("GET")
+                    .uri(url)
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
     }
 
     fn download_link(&self, replay_name: &str) -> String {
         format!("{}/{}", self.extern_url, replay_name)
     }
 
-    pub async fn create_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, settings: GameSettings, player_names: Vec<String>, deck_hashes: Vec<Vec<String>>) -> GameMade {
-        let mut digest = GameMade::new( false, u64::MAX, String::new() );
+    pub async fn create_game(
+        &self,
+        client: &Client<HttpsConnector<HttpConnector>, Body>,
+        settings: GameSettings,
+        player_names: Vec<String>,
+        deck_hashes: Vec<Vec<String>>,
+    ) -> GameMade {
+        let mut digest = GameMade::new(false, u64::MAX, String::new());
         if player_names.len() != deck_hashes.len() {
-            return digest
+            return digest;
         }
 
-        let mut body  = format!("authtoken={}\n", self.auth_token);
+        let mut body = format!("authtoken={}\n", self.auth_token);
         body += &settings.to_string();
 
         if settings.playerDeckVerification {
-            for (i,name) in player_names.iter().enumerate() {
+            for (i, name) in player_names.iter().enumerate() {
                 if name.is_empty() {
                     body += "playerName=*\n";
                 } else {
@@ -91,26 +108,34 @@ impl TriceBot {
             }
         }
 
-        println!( "{}\n", body );
+        println!("{}\n", body);
 
         if let Ok(response) = self.req(client, "api/creategame", &body, false).await {
             let mut game_id: u64 = u64::MAX;
             let mut replay_name: String = String::new();
-            if let Ok(lines) = response_into_string(response).await {
-                println!( "{}", lines );
+            if let Ok(lines) = utils::response_into_string(response).await {
+                println!("{}", lines);
                 for line in lines.split("\n") {
                     let mut parts = line.splitn(2, "=");
                     let tag = parts.next().unwrap(); // This will always exist
                     if let Some(value) = parts.next() {
                         if tag == String::from("gameid") {
                             match value.parse::<u64>() {
-                                Ok(v) => { game_id = v; },
-                                Err(_) => { continue; },
+                                Ok(v) => {
+                                    game_id = v;
+                                }
+                                Err(_) => {
+                                    continue;
+                                }
                             }
                         } else if tag == String::from("replayName") {
                             match urlparse::quote(value, b"") {
-                                Ok(v) => { replay_name = v; },
-                                Err(_) => { continue; }
+                                Ok(v) => {
+                                    replay_name = v;
+                                }
+                                Err(_) => {
+                                    continue;
+                                }
                             }
                         }
                     }
@@ -123,28 +148,58 @@ impl TriceBot {
         digest
     }
 
-    pub async fn end_game(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, game_id: u64) -> Result<(),Box<dyn Error>> {
-        let body = format!("authtoken={}\ngameid={game_id}",self.auth_token);
+    pub async fn end_game(
+        &self,
+        client: &Client<HttpsConnector<HttpConnector>, Body>,
+        game_id: u64,
+    ) -> Result<(), Box<dyn Error>> {
+        let body = format!("authtoken={}\ngameid={game_id}", self.auth_token);
         let response = self.req(client, "api/endgame", &body, false).await?;
-        match response_into_string(response).await {
-            Ok(s) => if s == "success" { Ok(()) } else { Err() },
-            Err(e) => Err(e)
+        match utils::response_into_string(response).await {
+            Ok(s) => {
+                if s == "success" {
+                    Ok(())
+                } else {
+                    Err(Box::new(TriceError::new(
+                        "Game couldn't be ended".to_string(),
+                    )))
+                }
+            }
+            Err(e) => Err(e),
         }
     }
 
-    pub async fn download_replays(&self, client: &Client<HttpsConnector<HttpConnector>, Body>, urls: &Vec<String>) -> HashMap<String, tempfile> {
+    pub async fn download_replays(
+        &self,
+        client: &Client<HttpsConnector<HttpConnector>, Body>,
+        urls: &Vec<String>,
+    ) -> HashMap<String, File> {
         let mut digest = HashMap::with_capacity(urls.len());
         for url in urls {
-            let mut replay_name: String;
-            match urlparse::unquote(url.split("/").next(), b"") {
-                Err(_) => { continue; },
-                Ok(v) => { replay_name = v; }
+            let replay_name: String;
+            match urlparse::unquote(url.split("/").next().unwrap()) {
+                Err(_) => {
+                    continue;
+                }
+                Ok(v) => {
+                    replay_name = v;
+                }
             }
-            if let Ok(response) = self.req(client, &url.replace(self.extern_url.clone(), &self.api_url), "", true).await {
-                if let Ok(content) = response_into_string(response.into_body()).await {
-                    if !was_bad_request(content) && let Ok(f) = tempfile() {
-                        f.write(content);
-                        digest.append(replay_name, f);
+            if let Ok(response) = self
+                .req(
+                    client,
+                    &url.replace(&self.extern_url, &self.api_url),
+                    "",
+                    true,
+                )
+                .await
+            {
+                if let Ok(content) = utils::response_into_string(response).await {
+                    if let Ok(mut f) = tempfile() {
+                        if !utils::was_bad_request(&content) {
+                            let _ = f.write_all((&content).as_bytes());
+                            digest.insert(replay_name, f);
+                        }
                     }
                 }
             }

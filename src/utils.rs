@@ -1,7 +1,7 @@
 use hyper::{body, Response};
 
-use std::error::Error;
 use std::collections::HashMap;
+use std::error::Error;
 use std::fs::File;
 
 pub fn bool_to_string(b: bool) -> String {
